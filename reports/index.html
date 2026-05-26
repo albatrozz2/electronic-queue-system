@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Модуль отчётности — Система электронной очереди</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Segoe UI',Arial,sans-serif; background:#F0F4F8; color:#1A237E; }
+
+  .header {
+    background:linear-gradient(135deg,#1A237E,#1565C0);
+    padding:20px 32px; color:white;
+    display:flex; justify-content:space-between; align-items:center;
+    box-shadow:0 2px 12px rgba(0,0,0,0.2);
+  }
+  .header-left h1 { font-size:22px; font-weight:800; }
+  .header-left p  { font-size:13px; opacity:0.7; margin-top:2px; }
+  .header-right   { display:flex; gap:12px; align-items:center; }
+  .btn-export {
+    background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3);
+    color:white; padding:8px 18px; border-radius:8px; cursor:pointer;
+    font-size:13px; font-weight:600; transition:background 0.2s;
+  }
+  .btn-export:hover { background:rgba(255,255,255,0.25); }
+  .clock { font-size:20px; font-weight:700; }
+
+  .container { max-width:1200px; margin:0 auto; padding:24px 24px 40px; }
+
+  /* ── FILTER BAR ── */
+  .filter-bar {
+    background:white; border-radius:12px; padding:16px 20px;
+    display:flex; gap:16px; align-items:center; flex-wrap:wrap;
+    box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:24px;
+  }
+  .filter-bar label { font-size:13px; font-weight:600; color:#546E7A; }
+  .filter-bar select, .filter-bar input {
+    padding:8px 12px; border:1px solid #E0E0E0; border-radius:8px;
+    font-size:13px; color:#1A237E; outline:none;
+  }
+  .filter-bar select:focus, .filter-bar input:focus { border-color:#1565C0; }
+  .btn-apply {
+    background:#1565C0; color:white; border:none; padding:8px 20px;
+    border-radius:8px; cursor:pointer; font-size:13px; font-weight:600;
+  }
+
+  /* ── STATS CARDS ── */
+  .stats-grid {
+    display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px;
+  }
+  @media(max-width:800px){ .stats-grid{ grid-template-columns:repeat(2,1fr); } }
+  .stat-card {
+    background:white; border-radius:14px; padding:20px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.06);
+    border-left:4px solid var(--c);
+  }
+  .stat-card .sc-label { font-size:12px; color:#78909C; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px; }
+  .stat-card .sc-value { font-size:32px; font-weight:900; color:var(--c); }
+  .stat-card .sc-sub   { font-size:12px; color:#90A4AE; margin-top:4px; }
+
+  /* ── CHARTS ── */
+  .charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px; }
+  @media(max-width:800px){ .charts-grid{ grid-template-columns:1fr; } }
+  .chart-card {
+    background:white; border-radius:14px; padding:20px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.06);
+  }
+  .chart-title { font-size:14px; font-weight:700; color:#1A237E; margin-bottom:16px; }
+  .bar-chart   { display:flex; flex-direction:column; gap:8px; }
+  .bar-row     { display:flex; align-items:center; gap:10px; }
+  .bar-label   { font-size:12px; color:#546E7A; width:120px; flex-shrink:0; text-align:right; }
+  .bar-track   { flex:1; background:#F0F4F8; border-radius:4px; height:28px; overflow:hidden; }
+  .bar-fill    { height:100%; border-radius:4px; display:flex; align-items:center; padding-left:8px;
+                 font-size:12px; font-weight:700; color:white; transition:width 0.6s; }
+  .bar-val     { font-size:12px; font-weight:700; color:#546E7A; width:36px; text-align:right; flex-shrink:0; }
+
+  /* hourly mini bars */
+  .hour-chart  { display:flex; align-items:flex-end; gap:4px; height:80px; padding-top:8px; }
+  .h-bar       { flex:1; border-radius:4px 4px 0 0; min-height:4px; transition:height 0.5s;
+                 background:#1565C0; opacity:0.7; position:relative; cursor:pointer; }
+  .h-bar:hover { opacity:1; }
+  .h-bar .tooltip {
+    display:none; position:absolute; bottom:100%; left:50%; transform:translateX(-50%);
+    background:#1A237E; color:white; padding:2px 6px; border-radius:4px; font-size:10px; white-space:nowrap;
+  }
+  .h-bar:hover .tooltip { display:block; }
+  .h-labels    { display:flex; gap:4px; margin-top:4px; }
+  .h-lbl       { flex:1; text-align:center; font-size:9px; color:#90A4AE; }
+
+  /* ── TABLE ── */
+  .table-card {
+    background:white; border-radius:14px; padding:20px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:16px;
+  }
+  .table-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+  .table-title  { font-size:14px; font-weight:700; color:#1A237E; }
+  .table-sub    { font-size:12px; color:#90A4AE; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  thead tr { background:#F5F7FF; }
+  th { padding:10px 12px; text-align:left; font-size:11px; font-weight:700; letter-spacing:0.08em;
+       text-transform:uppercase; color:#78909C; border-bottom:2px solid #E0E0E0; }
+  td { padding:12px; border-bottom:1px solid #F0F0F0; color:#333; }
+  tr:hover td { background:#FAFBFF; }
+  .td-num { font-weight:700; color:#1565C0; }
+  .status-badge {
+    padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; display:inline-block;
+  }
+  .sb-completed { background:#E8F5E9; color:#2E7D32; }
+  .sb-waiting   { background:#FFF9C4; color:#F57F17; }
+  .sb-called    { background:#E3F2FD; color:#1565C0; }
+  .sb-cancelled { background:#FFEBEE; color:#C62828; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>📊 Модуль отчётности</h1>
+    <p>Система электронной очереди · Аналитика и статистика</p>
+  </div>
+  <div class="header-right">
+    <button class="btn-export" onclick="exportCSV()">⬇ Экспорт CSV</button>
+    <button class="btn-export" onclick="window.print()">🖨 Печать</button>
+    <div class="clock" id="clock">00:00</div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar">
+    <label>Период:</label>
+    <select id="period">
+      <option value="today">Сегодня</option>
+      <option value="week">Неделя</option>
+      <option value="month">Месяц</option>
+    </select>
+    <label>Услуга:</label>
+    <select id="filter-service">
+      <option value="">Все услуги</option>
+      <option value="A">A — Консультация</option>
+      <option value="B">B — Документы</option>
+      <option value="C">C — Заявления</option>
+      <option value="D">D — Оплата</option>
+    </select>
+    <button class="btn-apply" onclick="loadAll()">Применить</button>
+  </div>
+
+  <!-- STATS CARDS -->
+  <div class="stats-grid" id="stats-grid"></div>
+
+  <!-- CHARTS -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">Распределение по услугам</div>
+      <div class="bar-chart" id="service-chart"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Нагрузка по часам</div>
+      <div class="hour-chart" id="hour-chart"></div>
+      <div class="h-labels" id="hour-labels"></div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-card">
+    <div class="table-header">
+      <div>
+        <div class="table-title">Журнал талонов</div>
+        <div class="table-sub" id="table-sub">Загрузка…</div>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>№ Талона</th>
+          <th>Услуга</th>
+          <th>Статус</th>
+          <th>Создан</th>
+          <th>Вызван</th>
+          <th>Завершён</th>
+          <th>Время (мин)</th>
+        </tr>
+      </thead>
+      <tbody id="tickets-tbody"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+const API = 'http://localhost:5000/api';
+
+// ── Clock ──────────────────────────────────────────────────────────────────
+setInterval(() => {
+  const n = new Date();
+  document.getElementById('clock').textContent =
+    String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+}, 1000);
+
+// ── Load all ───────────────────────────────────────────────────────────────
+async function loadAll() {
+  await Promise.all([loadStats(), loadTickets()]);
+}
+
+// ── Stats ──────────────────────────────────────────────────────────────────
+async function loadStats() {
+  let s;
+  try {
+    const r = await fetch(API+'/admin/stats', {headers:{'X-Admin-Token':'admin123'}});
+    s = await r.json();
+  } catch {
+    s = { served_today:47, waiting:8, avg_time_min:6.2, operators_online:3 };
+  }
+
+  const cards = [
+    { label:'Обслужено сегодня', value: s.served_today,     sub:'за текущий день',        c:'#1565C0' },
+    { label:'В очереди',         value: s.waiting,           sub:'ожидают прямо сейчас',   c:'#F57F17' },
+    { label:'Среднее время',     value: (s.avg_time_min||0)+'м', sub:'на одного клиента',  c:'#2E7D32' },
+    { label:'Операторов онлайн', value: s.operators_online,  sub:'активны сейчас',         c:'#6A1B9A' },
+  ];
+
+  document.getElementById('stats-grid').innerHTML = cards.map(c => `
+    <div class="stat-card" style="--c:${c.c}">
+      <div class="sc-label">${c.label}</div>
+      <div class="sc-value">${c.value}</div>
+      <div class="sc-sub">${c.sub}</div>
+    </div>`).join('');
+
+  renderServiceChart(s.served_today);
+  renderHourChart();
+}
+
+function renderServiceChart(total) {
+  const services = [
+    { name:'Консультация (A)', pct:38, color:'#1565C0' },
+    { name:'Документы (B)',    pct:28, color:'#00838F' },
+    { name:'Заявления (C)',    pct:22, color:'#2E7D32' },
+    { name:'Оплата (D)',       pct:12, color:'#6A1B9A' },
+  ];
+  document.getElementById('service-chart').innerHTML = services.map(s => `
+    <div class="bar-row">
+      <div class="bar-label">${s.name}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${s.pct}%;background:${s.color}">${s.pct}%</div>
+      </div>
+      <div class="bar-val">${Math.round(total*s.pct/100)}</div>
+    </div>`).join('');
+}
+
+function renderHourChart() {
+  const hours = [0,0,0,0,0,0,0,0,3,8,12,15,10,18,20,14,9,11,7,4,2,1,0,0];
+  const max = Math.max(...hours);
+  const chart = document.getElementById('hour-chart');
+  const labels = document.getElementById('hour-labels');
+  chart.innerHTML = hours.map((v,i) => `
+    <div class="h-bar" style="height:${max?Math.max(4,Math.round(v/max*72)):4}px">
+      <div class="tooltip">${String(i).padStart(2,'0')}:00 — ${v} чел.</div>
+    </div>`).join('');
+  labels.innerHTML = [9,12,15,18].map(h =>
+    `<div class="h-lbl" style="margin-left:${(h-0)/23*100}%">${h}:00</div>`
+  ).join('');
+}
+
+// ── Tickets table ──────────────────────────────────────────────────────────
+async function loadTickets() {
+  let tickets;
+  try {
+    const r = await fetch(API+'/tickets/queue');
+    tickets = await r.json();
+  } catch { tickets = []; }
+
+  // demo rows if empty
+  if (!tickets.length) {
+    tickets = [
+      {ticket_number:'A043',service_name:'Консультация',status:'completed',created_at:'08:52',called_at:'09:14',completed_at:'09:21'},
+      {ticket_number:'B031',service_name:'Документы',   status:'completed',created_at:'09:03',called_at:'09:22',completed_at:'09:35'},
+      {ticket_number:'A044',service_name:'Консультация',status:'called',   created_at:'09:10',called_at:'09:36',completed_at:null},
+      {ticket_number:'C012',service_name:'Заявления',   status:'waiting',  created_at:'09:18',called_at:null,   completed_at:null},
+      {ticket_number:'D008',service_name:'Оплата',      status:'waiting',  created_at:'09:25',called_at:null,   completed_at:null},
+      {ticket_number:'B032',service_name:'Документы',   status:'cancelled',created_at:'09:30',called_at:'09:41',completed_at:'09:41'},
+    ];
+  }
+
+  const statusMap = {
+    completed:'sb-completed', waiting:'sb-waiting',
+    called:'sb-called',       cancelled:'sb-cancelled'
+  };
+  const statusLabel = {
+    completed:'Завершён', waiting:'Ожидает', called:'Вызван', cancelled:'Отменён'
+  };
+
+  document.getElementById('table-sub').textContent = `Записей: ${tickets.length}`;
+  document.getElementById('tickets-tbody').innerHTML = tickets.map(t => {
+    let mins = '—';
+    if (t.completed_at && t.created_at) {
+      try {
+        const diff = (new Date('2000-01-01 '+t.completed_at) - new Date('2000-01-01 '+t.created_at)) / 60000;
+        if (!isNaN(diff) && diff > 0) mins = Math.round(diff);
+      } catch {}
+    }
+    return `<tr>
+      <td class="td-num">${t.ticket_number}</td>
+      <td>${t.service_name}</td>
+      <td><span class="status-badge ${statusMap[t.status]||''}">${statusLabel[t.status]||t.status}</span></td>
+      <td>${t.created_at||'—'}</td>
+      <td>${t.called_at||'—'}</td>
+      <td>${t.completed_at||'—'}</td>
+      <td>${mins}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Export CSV ─────────────────────────────────────────────────────────────
+function exportCSV() {
+  const rows = [['Талон','Услуга','Статус','Создан','Вызван','Завершён','Время (мин)']];
+  document.querySelectorAll('#tickets-tbody tr').forEach(tr => {
+    rows.push([...tr.querySelectorAll('td')].map(td => td.textContent.trim()));
+  });
+  const csv = rows.map(r => r.join(';')).join('\n');
+  const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'queue_report_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+
+loadAll();
+setInterval(loadAll, 30000);
+</script>
+</body>
+</html>

@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Электронная очередь</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  :root {
+    --blue:   #1565C0;
+    --blue2:  #1976D2;
+    --light:  #E3F2FD;
+    --green:  #2E7D32;
+    --orange: #E65100;
+    --red:    #C62828;
+    --text:   #1A237E;
+    --muted:  #78909C;
+    --bg:     #F0F4FF;
+  }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    max-width: 430px;
+    margin: 0 auto;
+  }
+
+  /* ── STATUS BAR ── */
+  .status-bar {
+    background: var(--blue);
+    color: white;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+  .status-bar .time { font-weight: 700; font-size: 15px; }
+
+  /* ── HEADER ── */
+  .header {
+    background: linear-gradient(135deg, var(--blue), #1976D2);
+    padding: 20px 20px 30px;
+    color: white;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: -20px; left: 0; right: 0;
+    height: 40px;
+    background: var(--bg);
+    border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  }
+  .header-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+  .app-name { font-size:18px; font-weight:700; }
+  .header-icon { font-size:24px; }
+  .header-greeting { font-size:14px; opacity:0.8; margin-bottom:4px; }
+  .header-title { font-size:22px; font-weight:800; }
+
+  /* ── SCREENS ── */
+  .screen { display:none; padding:16px; padding-bottom:80px; }
+  .screen.active { display:block; }
+
+  /* ── SECTION ── */
+  .section-title {
+    font-size:12px; font-weight:700; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--muted);
+    margin:20px 0 10px;
+  }
+
+  /* ── SERVICE CARDS ── */
+  .service-card {
+    background:white;
+    border-radius:16px;
+    padding:16px;
+    margin-bottom:10px;
+    display:flex;
+    align-items:center;
+    gap:14px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.08);
+    cursor:pointer;
+    transition:transform 0.15s, box-shadow 0.15s;
+    border:2px solid transparent;
+  }
+  .service-card:active { transform:scale(0.97); }
+  .service-card:hover  { border-color:var(--blue); box-shadow:0 4px 16px rgba(21,101,192,0.2); }
+  .svc-icon {
+    width:48px; height:48px; border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px; font-weight:900; color:white; flex-shrink:0;
+  }
+  .svc-A { background:#1565C0; }
+  .svc-B { background:#00838F; }
+  .svc-C { background:#2E7D32; }
+  .svc-D { background:#6A1B9A; }
+  .svc-info { flex:1; }
+  .svc-name  { font-size:15px; font-weight:700; color:var(--text); margin-bottom:3px; }
+  .svc-meta  { font-size:12px; color:var(--muted); }
+  .svc-queue { text-align:right; flex-shrink:0; }
+  .svc-count { font-size:20px; font-weight:800; color:var(--blue); }
+  .svc-label { font-size:10px; color:var(--muted); }
+
+  /* ── MY TICKET CARD ── */
+  .ticket-banner {
+    background: linear-gradient(135deg, #0D47A1, #1565C0);
+    border-radius:20px;
+    padding:20px;
+    color:white;
+    margin-bottom:16px;
+    box-shadow:0 4px 16px rgba(13,71,161,0.4);
+  }
+  .tb-label  { font-size:11px; opacity:0.7; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:4px; }
+  .tb-number { font-size:64px; font-weight:900; line-height:1; margin-bottom:4px; }
+  .tb-service{ font-size:14px; opacity:0.85; margin-bottom:16px; }
+  .tb-row    { display:flex; gap:12px; }
+  .tb-stat   { background:rgba(255,255,255,0.15); border-radius:10px; padding:10px 14px; flex:1; text-align:center; }
+  .tb-stat-v { font-size:22px; font-weight:800; }
+  .tb-stat-l { font-size:10px; opacity:0.7; margin-top:2px; }
+  .tb-progress { margin-top:14px; }
+  .tb-prog-label { display:flex; justify-content:space-between; font-size:11px; opacity:0.7; margin-bottom:6px; }
+  .tb-prog-bar { height:6px; background:rgba(255,255,255,0.2); border-radius:3px; }
+  .tb-prog-fill { height:100%; background:#FFD600; border-radius:3px; transition:width 0.5s; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    width:100%; padding:16px; border:none; border-radius:14px;
+    font-size:16px; font-weight:700; cursor:pointer;
+    transition:opacity 0.2s, transform 0.1s;
+  }
+  .btn:active { transform:scale(0.97); opacity:0.85; }
+  .btn-primary { background:var(--blue); color:white; }
+  .btn-outline { background:white; color:var(--blue); border:2px solid var(--blue); margin-top:8px; }
+  .btn-danger  { background:var(--red); color:white; margin-top:8px; }
+
+  /* ── STATUS BADGE ── */
+  .badge {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700;
+  }
+  .badge-waiting { background:#FFF9C4; color:#F57F17; }
+  .badge-called  { background:#E8F5E9; color:#2E7D32; }
+  .badge::before { content:'●'; font-size:8px; }
+
+  /* ── EMPTY STATE ── */
+  .empty {
+    text-align:center; padding:40px 20px; color:var(--muted);
+  }
+  .empty-icon { font-size:48px; margin-bottom:12px; }
+  .empty-text { font-size:15px; }
+
+  /* ── BOTTOM NAV ── */
+  .bottom-nav {
+    position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+    width:100%; max-width:430px;
+    background:white;
+    border-top:1px solid #E0E0E0;
+    display:flex;
+    padding:8px 0 16px;
+    box-shadow:0 -4px 16px rgba(0,0,0,0.08);
+    z-index:100;
+  }
+  .nav-item {
+    flex:1; display:flex; flex-direction:column; align-items:center;
+    gap:4px; cursor:pointer; padding:4px;
+  }
+  .nav-icon  { font-size:22px; }
+  .nav-label { font-size:10px; color:var(--muted); font-weight:600; }
+  .nav-item.active .nav-label { color:var(--blue); }
+  .nav-item.active .nav-icon  { filter:none; }
+
+  /* ── HISTORY ── */
+  .history-card {
+    background:white; border-radius:14px; padding:14px 16px;
+    margin-bottom:10px; box-shadow:0 2px 8px rgba(0,0,0,0.06);
+    display:flex; align-items:center; gap:12px;
+  }
+  .hc-num { font-size:20px; font-weight:800; color:var(--blue); width:56px; flex-shrink:0; }
+  .hc-info { flex:1; }
+  .hc-service { font-size:14px; font-weight:600; color:var(--text); }
+  .hc-date    { font-size:12px; color:var(--muted); margin-top:2px; }
+  .hc-status  { font-size:12px; font-weight:700; }
+  .hc-done  { color:var(--green); }
+  .hc-cancel{ color:var(--red); }
+
+  /* ── TRACK ── */
+  .track-input-row { display:flex; gap:8px; margin-bottom:16px; }
+  .track-input {
+    flex:1; padding:14px 16px; border:2px solid #E0E0E0; border-radius:12px;
+    font-size:16px; font-weight:700; text-transform:uppercase;
+    outline:none; color:var(--text);
+  }
+  .track-input:focus { border-color:var(--blue); }
+  .btn-search { background:var(--blue); color:white; border:none; border-radius:12px; padding:14px 20px; font-size:16px; cursor:pointer; }
+  .track-result {
+    background:white; border-radius:16px; padding:20px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.08);
+  }
+  .tr-number { font-size:48px; font-weight:900; color:var(--blue); text-align:center; margin-bottom:4px; }
+  .tr-service{ font-size:14px; color:var(--muted); text-align:center; margin-bottom:16px; }
+  .tr-row { display:flex; justify-content:space-around; }
+  .tr-stat { text-align:center; }
+  .tr-val { font-size:28px; font-weight:800; color:var(--text); }
+  .tr-label { font-size:11px; color:var(--muted); margin-top:2px; }
+
+  /* animations */
+  @keyframes fadeIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+  .screen.active { animation:fadeIn 0.25s ease; }
+</style>
+</head>
+<body>
+
+<!-- STATUS BAR -->
+<div class="status-bar">
+  <span>Система электронной очереди</span>
+  <span class="time" id="sb-time">00:00</span>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <div class="app-name">⚡ Электронная очередь</div>
+    <div class="header-icon">🎫</div>
+  </div>
+  <div class="header-greeting">Добро пожаловать!</div>
+  <div class="header-title" id="header-title">Выберите услугу</div>
+</div>
+
+<!-- ══ SCREEN: ГЛАВНАЯ ══ -->
+<div class="screen active" id="screen-home">
+  <div class="section-title">Доступные услуги</div>
+  <div id="services-list"></div>
+</div>
+
+<!-- ══ SCREEN: МОЙ ТАЛОН ══ -->
+<div class="screen" id="screen-ticket">
+  <div class="section-title">Ваш талон</div>
+  <div class="ticket-banner" id="ticket-banner">
+    <div class="tb-label">Номер талона</div>
+    <div class="tb-number" id="tb-number">—</div>
+    <div class="tb-service" id="tb-service">—</div>
+    <div class="tb-row">
+      <div class="tb-stat">
+        <div class="tb-stat-v" id="tb-ahead">—</div>
+        <div class="tb-stat-l">Перед вами</div>
+      </div>
+      <div class="tb-stat">
+        <div class="tb-stat-v" id="tb-wait">—</div>
+        <div class="tb-stat-l">Минут ждать</div>
+      </div>
+      <div class="tb-stat">
+        <div class="tb-stat-v" id="tb-status-v">⏳</div>
+        <div class="tb-stat-l">Статус</div>
+      </div>
+    </div>
+    <div class="tb-progress">
+      <div class="tb-prog-label">
+        <span>Прогресс очереди</span>
+        <span id="tb-prog-pct">0%</span>
+      </div>
+      <div class="tb-prog-bar">
+        <div class="tb-prog-fill" id="tb-prog-fill" style="width:10%"></div>
+      </div>
+    </div>
+  </div>
+  <button class="btn btn-primary" onclick="refreshTicket()">🔄 Обновить статус</button>
+  <button class="btn btn-outline" onclick="showScreen('home')">← Главная</button>
+  <button class="btn btn-danger" onclick="cancelTicket()">✕ Отменить талон</button>
+</div>
+
+<!-- ══ SCREEN: ОТСЛЕЖИВАНИЕ ══ -->
+<div class="screen" id="screen-track">
+  <div class="section-title">Найти талон</div>
+  <div class="track-input-row">
+    <input class="track-input" id="track-input" placeholder="A001" maxlength="6">
+    <button class="btn-search" onclick="searchTicket()">🔍</button>
+  </div>
+  <div id="track-result"></div>
+</div>
+
+<!-- ══ SCREEN: ИСТОРИЯ ══ -->
+<div class="screen" id="screen-history">
+  <div class="section-title">История талонов</div>
+  <div id="history-list">
+    <div class="empty">
+      <div class="empty-icon">📋</div>
+      <div class="empty-text">История пуста</div>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <div class="nav-item active" id="nav-home" onclick="showScreen('home')">
+    <div class="nav-icon">🏠</div>
+    <div class="nav-label">Главная</div>
+  </div>
+  <div class="nav-item" id="nav-ticket" onclick="showScreen('ticket')">
+    <div class="nav-icon">🎫</div>
+    <div class="nav-label">Мой талон</div>
+  </div>
+  <div class="nav-item" id="nav-track" onclick="showScreen('track')">
+    <div class="nav-icon">🔍</div>
+    <div class="nav-label">Поиск</div>
+  </div>
+  <div class="nav-item" id="nav-history" onclick="showScreen('history')">
+    <div class="nav-icon">📋</div>
+    <div class="nav-label">История</div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:5000/api';
+let currentTicket = null;
+let history_list  = JSON.parse(localStorage.getItem('queue_history') || '[]');
+
+// ── Clock ──────────────────────────────────────────────────────────────────
+function tick() {
+  const n = new Date();
+  document.getElementById('sb-time').textContent =
+    String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0');
+}
+setInterval(tick, 1000); tick();
+
+// ── Navigation ────────────────────────────────────────────────────────────
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  const titles = { home:'Выберите услугу', ticket:'Мой талон', track:'Поиск талона', history:'История' };
+  document.getElementById('header-title').textContent = titles[name] || '';
+  if (name === 'ticket' && currentTicket) refreshTicket();
+  if (name === 'history') renderHistory();
+}
+
+// ── Services ─────────────────────────────────────────────────────────────
+async function loadServices() {
+  let services;
+  try {
+    const r = await fetch(API + '/services');
+    services = await r.json();
+  } catch {
+    services = [
+      {id:1, name:'Консультация по вопросам', code:'A', avg_time:5},
+      {id:2, name:'Подача документов',        code:'B', avg_time:7},
+      {id:3, name:'Приём заявлений',          code:'C', avg_time:6},
+      {id:4, name:'Оплата услуг',             code:'D', avg_time:3},
+    ];
+  }
+  const list = document.getElementById('services-list');
+  list.innerHTML = '';
+
+  // queue counts
+  let queue = [];
+  try { queue = await (await fetch(API + '/tickets/queue')).json(); } catch {}
+
+  services.forEach(s => {
+    const cnt = queue.filter(t => t.service_id === s.id).length;
+    const card = document.createElement('div');
+    card.className = 'service-card';
+    card.innerHTML = `
+      <div class="svc-icon svc-${s.code}">${s.code}</div>
+      <div class="svc-info">
+        <div class="svc-name">${s.name}</div>
+        <div class="svc-meta">~${s.avg_time} мин на клиента</div>
+      </div>
+      <div class="svc-queue">
+        <div class="svc-count">${cnt}</div>
+        <div class="svc-label">в очереди</div>
+      </div>
+    `;
+    card.onclick = () => getTicket(s);
+    list.appendChild(card);
+  });
+}
+
+// ── Get ticket ────────────────────────────────────────────────────────────
+async function getTicket(service) {
+  let data;
+  try {
+    const r = await fetch(API + '/tickets', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({service_id: service.id})
+    });
+    data = await r.json();
+  } catch {
+    const n = Math.floor(Math.random()*20)+1;
+    const ahead = Math.floor(Math.random()*8);
+    data = {
+      ticket_number: service.code + String(n).padStart(3,'0'),
+      service: service.name,
+      waiting_ahead: ahead,
+      estimated_min: ahead * service.avg_time,
+      status: 'waiting'
+    };
+  }
+  currentTicket = {...data, service_name: data.service, created: new Date().toLocaleString('ru')};
+  renderTicket(currentTicket);
+  // save to history
+  history_list.unshift({...currentTicket});
+  if (history_list.length > 20) history_list.pop();
+  localStorage.setItem('queue_history', JSON.stringify(history_list));
+  showScreen('ticket');
+}
+
+function renderTicket(t) {
+  document.getElementById('tb-number').textContent  = t.ticket_number;
+  document.getElementById('tb-service').textContent = t.service || t.service_name;
+  document.getElementById('tb-ahead').textContent   = t.waiting_ahead ?? '—';
+  document.getElementById('tb-wait').textContent    = t.estimated_min ?? '—';
+  const s = t.status || 'waiting';
+  document.getElementById('tb-status-v').textContent = s === 'waiting' ? '⏳' : s === 'called' ? '📢' : s === 'completed' ? '✅' : '❌';
+  const total = (t.waiting_ahead || 0) + 1;
+  const pct = total > 0 ? Math.max(10, Math.round((1/total)*100)) : 10;
+  document.getElementById('tb-prog-fill').style.width = pct + '%';
+  document.getElementById('tb-prog-pct').textContent  = pct + '%';
+}
+
+async function refreshTicket() {
+  if (!currentTicket) return;
+  try {
+    const r = await fetch(API + '/tickets/' + currentTicket.ticket_number);
+    const data = await r.json();
+    currentTicket = {...currentTicket, ...data};
+    renderTicket(currentTicket);
+  } catch { renderTicket(currentTicket); }
+}
+
+function cancelTicket() {
+  if (!currentTicket) return;
+  if (!confirm('Отменить талон ' + currentTicket.ticket_number + '?')) return;
+  currentTicket.status = 'cancelled';
+  history_list[0] = {...currentTicket};
+  localStorage.setItem('queue_history', JSON.stringify(history_list));
+  currentTicket = null;
+  showScreen('home');
+}
+
+// ── Track ─────────────────────────────────────────────────────────────────
+async function searchTicket() {
+  const num = document.getElementById('track-input').value.trim().toUpperCase();
+  if (!num) return;
+  const div = document.getElementById('track-result');
+  div.innerHTML = '<div style="text-align:center;padding:20px;color:#90A4AE">Поиск…</div>';
+  try {
+    const r = await fetch(API + '/tickets/' + num);
+    if (!r.ok) throw new Error();
+    const t = await r.json();
+    div.innerHTML = `
+      <div class="track-result">
+        <div class="tr-number">${t.ticket_number}</div>
+        <div class="tr-service">${t.service_name}</div>
+        <div style="text-align:center;margin-bottom:16px">
+          <span class="badge badge-${t.status === 'called' ? 'called' : 'waiting'}">
+            ${t.status === 'waiting' ? 'Ожидает' : t.status === 'called' ? 'Вызван' : t.status}
+          </span>
+        </div>
+        <div class="tr-row">
+          <div class="tr-stat"><div class="tr-val">${t.position || '—'}</div><div class="tr-label">Позиция</div></div>
+          <div class="tr-stat"><div class="tr-val">${t.status === 'called' ? '📢' : '⏳'}</div><div class="tr-label">Статус</div></div>
+        </div>
+      </div>`;
+  } catch {
+    div.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">Талон не найден</div></div>';
+  }
+}
+
+// ── History ───────────────────────────────────────────────────────────────
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  if (!history_list.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">История пуста</div></div>';
+    return;
+  }
+  list.innerHTML = history_list.map(t => `
+    <div class="history-card">
+      <div class="hc-num">${t.ticket_number}</div>
+      <div class="hc-info">
+        <div class="hc-service">${t.service || t.service_name}</div>
+        <div class="hc-date">${t.created || ''}</div>
+      </div>
+      <div class="hc-status ${t.status === 'completed' ? 'hc-done' : t.status === 'cancelled' ? 'hc-cancel' : ''}">
+        ${t.status === 'completed' ? '✅ Выполнен' : t.status === 'cancelled' ? '❌ Отменён' : '⏳ Ожидает'}
+      </div>
+    </div>`).join('');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+loadServices();
+setInterval(loadServices, 30000);
+</script>
+</body>
+</html>
