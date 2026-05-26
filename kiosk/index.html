@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Электронная очередь — Киоск</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #0D47A1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: #0A2E6E;
+    padding: 18px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  }
+  .header-logo {
+    font-size: 22px;
+    font-weight: 700;
+    color: white;
+    letter-spacing: 0.5px;
+  }
+  .header-logo span { color: #64B5F6; }
+  .header-time {
+    font-size: 28px;
+    font-weight: 700;
+    color: white;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; flex: 1; flex-direction: column; align-items: center; justify-content: center; padding: 40px 60px; }
+  .screen.active { display: flex; }
+
+  /* ── SCREEN 1: SELECT SERVICE ── */
+  .screen-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 40px;
+    text-align: center;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .services-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    width: 100%;
+    max-width: 900px;
+  }
+  .service-btn {
+    background: white;
+    border: none;
+    border-radius: 20px;
+    padding: 30px 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+    transition: transform 0.15s, box-shadow 0.15s;
+    text-align: left;
+  }
+  .service-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 32px rgba(0,0,0,0.35); }
+  .service-btn:active { transform: scale(0.97); }
+  .service-code {
+    width: 60px; height: 60px;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; font-weight: 900; color: white;
+    flex-shrink: 0;
+  }
+  .code-A { background: #1565C0; }
+  .code-B { background: #00838F; }
+  .code-C { background: #2E7D32; }
+  .code-D { background: #6A1B9A; }
+  .service-info { flex: 1; }
+  .service-name { font-size: 18px; font-weight: 700; color: #1A237E; margin-bottom: 6px; line-height: 1.3; }
+  .service-meta { font-size: 14px; color: #546E7A; }
+  .service-arrow { font-size: 28px; color: #90A4AE; }
+
+  /* ── SCREEN 2: TICKET ── */
+  .ticket-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    width: 100%;
+    max-width: 600px;
+  }
+  .ticket-card {
+    background: white;
+    border-radius: 24px;
+    padding: 40px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    position: relative;
+    overflow: hidden;
+  }
+  .ticket-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 6px;
+    background: linear-gradient(90deg, #1565C0, #42A5F5);
+  }
+  .ticket-label { font-size: 14px; color: #90A4AE; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+  .ticket-number { font-size: 96px; font-weight: 900; color: #0D47A1; line-height: 1; margin-bottom: 8px; }
+  .ticket-service { font-size: 18px; color: #546E7A; margin-bottom: 24px; }
+  .ticket-divider { height: 1px; background: #E0E0E0; margin: 20px 0; }
+  .ticket-info-row { display: flex; justify-content: space-around; }
+  .ticket-info-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .ticket-info-value { font-size: 28px; font-weight: 700; color: #1565C0; }
+  .ticket-info-label { font-size: 12px; color: #90A4AE; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  .qr-area {
+    background: white;
+    border-radius: 16px;
+    padding: 20px 30px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+  .qr-box {
+    width: 80px; height: 80px;
+    background: #1A237E;
+    border-radius: 8px;
+    display: grid;
+    grid-template-columns: repeat(7,1fr);
+    grid-template-rows: repeat(7,1fr);
+    gap: 2px;
+    padding: 6px;
+    flex-shrink: 0;
+  }
+  .qr-cell { background: white; border-radius: 1px; }
+  .qr-cell.dark { background: #1A237E; }
+  .qr-text { flex: 1; }
+  .qr-title { font-size: 15px; font-weight: 700; color: #1A237E; margin-bottom: 4px; }
+  .qr-sub { font-size: 13px; color: #78909C; }
+
+  .btn-back {
+    background: rgba(255,255,255,0.15);
+    border: 2px solid rgba(255,255,255,0.5);
+    color: white;
+    padding: 16px 48px;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-back:hover { background: rgba(255,255,255,0.25); }
+
+  /* countdown */
+  .countdown {
+    font-size: 14px;
+    color: rgba(255,255,255,0.6);
+    margin-top: 8px;
+  }
+  .countdown span { font-weight: 700; color: #64B5F6; }
+
+  /* ── FOOTER ── */
+  .footer {
+    background: #0A2E6E;
+    padding: 12px 40px;
+    text-align: center;
+    color: rgba(255,255,255,0.5);
+    font-size: 13px;
+  }
+
+  /* animations */
+  @keyframes fadeIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+  .screen.active { animation: fadeIn 0.3s ease; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-logo">⚡ <span>Электронная</span> очередь</div>
+  <div class="header-time" id="clock">00:00</div>
+</div>
+
+<!-- SCREEN 1: SELECT SERVICE -->
+<div class="screen active" id="screen-select">
+  <div class="screen-title">Выберите услугу</div>
+  <div class="services-grid" id="services-grid">
+    <!-- populated by JS -->
+  </div>
+</div>
+
+<!-- SCREEN 2: TICKET ISSUED -->
+<div class="screen" id="screen-ticket">
+  <div class="ticket-container">
+    <div class="ticket-card">
+      <div class="ticket-label">Ваш номер талона</div>
+      <div class="ticket-number" id="t-number">A001</div>
+      <div class="ticket-service" id="t-service">Консультация</div>
+      <div class="ticket-divider"></div>
+      <div class="ticket-info-row">
+        <div class="ticket-info-item">
+          <div class="ticket-info-value" id="t-ahead">—</div>
+          <div class="ticket-info-label">Перед вами</div>
+        </div>
+        <div class="ticket-info-item">
+          <div class="ticket-info-value" id="t-wait">—</div>
+          <div class="ticket-info-label">Ожидание (мин)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="qr-area">
+      <div class="qr-box" id="qr-box"></div>
+      <div class="qr-text">
+        <div class="qr-title">Отслеживание очереди</div>
+        <div class="qr-sub">Отсканируйте QR-код смартфоном<br>для отслеживания своей позиции</div>
+      </div>
+    </div>
+
+    <button class="btn-back" onclick="goBack()">← Вернуться на главный экран</button>
+    <div class="countdown">Автовозврат через <span id="cd">30</span> сек</div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">Нажмите на кнопку для получения талона • Система электронной очереди</div>
+
+<script>
+const API = 'http://localhost:5000/api';
+
+// ── Clock ──────────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Load services ─────────────────────────────────────────────────────────
+async function loadServices() {
+  let services;
+  try {
+    const res = await fetch(API + '/services');
+    services = await res.json();
+  } catch {
+    // fallback demo data
+    services = [
+      { id:1, name:'Консультация по вопросам', code:'A', avg_time:5 },
+      { id:2, name:'Подача документов',        code:'B', avg_time:7 },
+      { id:3, name:'Приём заявлений',          code:'C', avg_time:6 },
+      { id:4, name:'Оплата услуг',             code:'D', avg_time:3 },
+    ];
+  }
+  renderServices(services);
+}
+
+function renderServices(services) {
+  const grid = document.getElementById('services-grid');
+  grid.innerHTML = '';
+  services.forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'service-btn';
+    btn.innerHTML = `
+      <div class="service-code code-${s.code}">${s.code}</div>
+      <div class="service-info">
+        <div class="service-name">${s.name}</div>
+        <div class="service-meta">Среднее время: ~${s.avg_time} мин</div>
+      </div>
+      <div class="service-arrow">›</div>
+    `;
+    btn.onclick = () => getTicket(s.id);
+    grid.appendChild(btn);
+  });
+}
+
+// ── Get ticket ────────────────────────────────────────────────────────────
+async function getTicket(serviceId) {
+  let data;
+  try {
+    const res = await fetch(API + '/tickets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ service_id: serviceId })
+    });
+    data = await res.json();
+  } catch {
+    // demo fallback
+    const codes = ['A','B','C','D'];
+    const names = ['Консультация по вопросам','Подача документов','Приём заявлений','Оплата услуг'];
+    const idx = serviceId - 1;
+    data = {
+      ticket_number: codes[idx] + String(Math.floor(Math.random()*20)+1).padStart(3,'0'),
+      service: names[idx],
+      waiting_ahead: Math.floor(Math.random()*8),
+      estimated_min: Math.floor(Math.random()*25)+2
+    };
+  }
+  showTicket(data);
+}
+
+function showTicket(data) {
+  document.getElementById('t-number').textContent  = data.ticket_number;
+  document.getElementById('t-service').textContent = data.service;
+  document.getElementById('t-ahead').textContent   = data.waiting_ahead;
+  document.getElementById('t-wait').textContent    = data.estimated_min;
+  buildQR();
+  document.getElementById('screen-select').classList.remove('active');
+  document.getElementById('screen-ticket').classList.add('active');
+  startCountdown(30);
+}
+
+// ── Simple QR pattern ────────────────────────────────────────────────────
+function buildQR() {
+  const box = document.getElementById('qr-box');
+  box.innerHTML = '';
+  const pattern = [
+    [1,1,1,1,1,1,1,0],[1,0,0,0,0,0,1,0],[1,0,1,1,1,0,1,0],
+    [1,0,1,0,1,0,1,0],[1,0,1,1,1,0,1,0],[1,0,0,0,0,0,1,0],
+    [1,1,1,1,1,1,1,0],[0,1,0,1,0,1,0,1],
+  ];
+  for (let r=0;r<8;r++) for (let c=0;c<8;c++) {
+    const cell = document.createElement('div');
+    cell.className = 'qr-cell' + ((pattern[r]&&pattern[r][c]) ? ' dark' : '');
+    box.appendChild(cell);
+  }
+}
+
+// ── Countdown & back ─────────────────────────────────────────────────────
+let cdTimer;
+function startCountdown(sec) {
+  clearInterval(cdTimer);
+  let n = sec;
+  document.getElementById('cd').textContent = n;
+  cdTimer = setInterval(() => {
+    n--;
+    document.getElementById('cd').textContent = n;
+    if (n <= 0) goBack();
+  }, 1000);
+}
+
+function goBack() {
+  clearInterval(cdTimer);
+  document.getElementById('screen-ticket').classList.remove('active');
+  document.getElementById('screen-select').classList.add('active');
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────
+loadServices();
+</script>
+</body>
+</html>

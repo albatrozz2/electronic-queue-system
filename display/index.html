@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Дисплей очереди</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #06081A;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: white;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: #0A0D24;
+    padding: 16px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #1E2D6E;
+    flex-shrink: 0;
+  }
+  .header-title {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: white;
+  }
+  .header-title span { color: #42A5F5; }
+  .header-right { display: flex; align-items: center; gap: 30px; }
+  .header-date { font-size: 15px; color: #546E7A; }
+  .header-time { font-size: 34px; font-weight: 800; color: white; font-variant-numeric: tabular-nums; }
+
+  /* ── MAIN ── */
+  .main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 2px 1fr;
+    gap: 0;
+    overflow: hidden;
+    padding: 0;
+  }
+  .divider { background: #1E2D6E; }
+
+  /* ── LEFT: CALLED ── */
+  .panel { display: flex; flex-direction: column; padding: 24px 28px; overflow: hidden; }
+  .panel-title {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #42A5F5;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #1E2D6E;
+  }
+  .called-list { display: flex; flex-direction: column; gap: 14px; flex: 1; overflow: hidden; }
+
+  .called-card {
+    background: #0D1A4A;
+    border: 1px solid #1E3A8A;
+    border-radius: 16px;
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    position: relative;
+    overflow: hidden;
+    animation: slideIn 0.4s ease;
+  }
+  .called-card.new {
+    border-color: #FFD600;
+    background: #12204E;
+    box-shadow: 0 0 20px rgba(255,214,0,0.15);
+  }
+  .called-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: #1565C0;
+  }
+  .called-card.new::before { background: #FFD600; }
+
+  .card-window {
+    background: #1565C0;
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .card-number {
+    font-size: 56px;
+    font-weight: 900;
+    color: #FFD600;
+    line-height: 1;
+    flex: 1;
+    text-align: center;
+    letter-spacing: 2px;
+  }
+  .card-service {
+    font-size: 13px;
+    color: #546E7A;
+    text-align: right;
+    flex-shrink: 0;
+    max-width: 120px;
+    line-height: 1.4;
+  }
+
+  /* ── RIGHT: WAITING ── */
+  .waiting-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    flex: 1;
+    overflow: hidden;
+    align-content: start;
+  }
+  .waiting-chip {
+    background: #0A1230;
+    border: 1px solid #1E2D6E;
+    border-radius: 10px;
+    padding: 14px 10px;
+    text-align: center;
+    animation: fadeUp 0.3s ease;
+  }
+  .waiting-chip .num { font-size: 22px; font-weight: 700; color: #90A4AE; }
+  .waiting-chip .pos { font-size: 11px; color: #37474F; margin-top: 2px; }
+
+  /* ── INFO BLOCK (right panel bottom) ── */
+  .info-block {
+    background: #0A0D24;
+    border: 1px solid #1E2D6E;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-top: 16px;
+  }
+  .info-title { font-size: 12px; color: #42A5F5; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; }
+  .info-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+  .info-label { font-size: 13px; color: #546E7A; }
+  .info-value { font-size: 13px; color: #E0E0E0; font-weight: 600; }
+
+  /* ── TICKER ── */
+  .ticker {
+    background: #0A0D24;
+    border-top: 2px solid #1E2D6E;
+    padding: 10px 0;
+    overflow: hidden;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .ticker-inner {
+    display: inline-block;
+    white-space: nowrap;
+    animation: ticker 40s linear infinite;
+    font-size: 16px;
+    color: #FFD600;
+    padding-left: 100%;
+  }
+  .ticker-inner::before { content: '★  '; }
+
+  /* ── PULSE ── */
+  .pulse { animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  @keyframes slideIn { from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:translateX(0)} }
+  @keyframes fadeUp  { from{opacity:0;transform:translateY(10px)}  to{opacity:1;transform:translateY(0)} }
+  @keyframes ticker  { 0%{transform:translateX(0)} 100%{transform:translateX(-100%)} }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-title">⚡ <span>СИСТЕМА</span> ЭЛЕКТРОННОЙ ОЧЕРЕДИ</div>
+  <div class="header-right">
+    <div class="header-date" id="date-str"></div>
+    <div class="header-time" id="clock">00:00</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- LEFT: ВЫЗВАНЫ СЕЙЧАС -->
+  <div class="panel">
+    <div class="panel-title">🔔 Сейчас вызывают</div>
+    <div class="called-list" id="called-list">
+      <div style="color:#37474F;font-size:15px;margin-top:20px">Ожидание вызовов…</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- RIGHT: ОЧЕРЕДЬ -->
+  <div class="panel">
+    <div class="panel-title">⏳ Ожидают в очереди</div>
+    <div class="waiting-grid" id="waiting-grid"></div>
+    <div class="info-block">
+      <div class="info-title">Информация</div>
+      <div class="info-row">
+        <span class="info-label">Режим работы</span>
+        <span class="info-value" id="work-hours">Пн–Пт: 9:00–18:00</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Всего в очереди</span>
+        <span class="info-value" id="total-waiting">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Обслуживается</span>
+        <span class="info-value" id="total-called">—</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker-inner" id="ticker-text">
+    Уважаемые клиенты! Спасибо за ожидание. Просьба подходить к окну сразу после вызова.
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:5000/api';
+
+// ── Clock & Date ───────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  const days   = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+  const months = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  document.getElementById('date-str').textContent =
+    `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Fetch & render ─────────────────────────────────────────────────────────
+let prevCalled = [];
+
+async function fetchData() {
+  let data;
+  try {
+    const res = await fetch(API + '/display/data');
+    data = await res.json();
+  } catch {
+    // demo fallback
+    data = {
+      called: [
+        { ticket_number:'A015', window_number:1, service_name:'Консультация' },
+        { ticket_number:'B007', window_number:3, service_name:'Документы' },
+      ],
+      waiting: [
+        {ticket_number:'A016'},{ticket_number:'B008'},{ticket_number:'A017'},
+        {ticket_number:'B009'},{ticket_number:'C003'},{ticket_number:'A018'},
+      ],
+      settings: { work_hours:'Пн–Пт: 9:00–18:00  Сб: 9:00–14:00', ticker_msg:'Уважаемые клиенты! Спасибо за ожидание.' }
+    };
+  }
+  renderCalled(data.called);
+  renderWaiting(data.waiting);
+  document.getElementById('work-hours').textContent  = data.settings.work_hours || '—';
+  document.getElementById('total-waiting').textContent = data.waiting.length;
+  document.getElementById('total-called').textContent  = data.called.length;
+  if (data.settings.ticker_msg) {
+    document.getElementById('ticker-text').textContent = data.settings.ticker_msg;
+  }
+}
+
+function renderCalled(called) {
+  const list = document.getElementById('called-list');
+  if (!called.length) {
+    list.innerHTML = '<div style="color:#37474F;font-size:15px;margin-top:20px">Ожидание вызовов…</div>';
+    prevCalled = [];
+    return;
+  }
+  list.innerHTML = '';
+  called.forEach(c => {
+    const isNew = !prevCalled.find(p => p.ticket_number === c.ticket_number);
+    const card = document.createElement('div');
+    card.className = 'called-card' + (isNew ? ' new' : '');
+    card.innerHTML = `
+      <div class="card-window">Окно ${c.window_number}</div>
+      <div class="card-number ${isNew?'pulse':''}">${c.ticket_number}</div>
+      <div class="card-service">${c.service_name}</div>
+    `;
+    list.appendChild(card);
+    if (isNew) {
+      playBeep();
+      setTimeout(() => { card.classList.remove('new'); card.querySelector('.card-number')?.classList.remove('pulse'); }, 5000);
+    }
+  });
+  prevCalled = [...called];
+}
+
+function renderWaiting(waiting) {
+  const grid = document.getElementById('waiting-grid');
+  grid.innerHTML = '';
+  waiting.slice(0,12).forEach((w,i) => {
+    const chip = document.createElement('div');
+    chip.className = 'waiting-chip';
+    chip.innerHTML = `<div class="num">${w.ticket_number}</div><div class="pos">#${i+1}</div>`;
+    grid.appendChild(chip);
+  });
+}
+
+// ── Beep ───────────────────────────────────────────────────────────────────
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    osc.start(); osc.stop(ctx.currentTime + 0.6);
+  } catch(e) {}
+}
+
+// ── Poll every 5 seconds ──────────────────────────────────────────────────
+fetchData();
+setInterval(fetchData, 5000);
+</script>
+</body>
+</html>
